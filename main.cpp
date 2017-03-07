@@ -134,7 +134,7 @@ void binarizeShafait(Mat &gray, Mat &binary, int w, double k) {
 int main(int argc, char *argv[]) {
     if (argc != 5) {
         cout << "Error in arguments, breaking!\n";
-        cout<<"Figure is "<<argc<<endl;
+        cout << "Figure is " << argc << endl;
         return 0;
     }
 
@@ -164,83 +164,81 @@ int main(int argc, char *argv[]) {
         fasterAll.push_back(s);
     }
 
-    unordered_map<string,vector<Rect>>fasterOutputRectangles; // "id"=>{box1, box2, box3, ...}
-    for(auto i:fasterAll) {
-        vector<string>boundingBoxCoordinatesStrings=regexSplit(i,"\\s+");
-        int x1,y1,x2,y2;
-        x1=stof(boundingBoxCoordinatesStrings[2]);
-        y1=stof(boundingBoxCoordinatesStrings[3]);
-        x2=stof(boundingBoxCoordinatesStrings[4]);
-        y2=stof(boundingBoxCoordinatesStrings[5]);
+    unordered_map<string, vector<Rect>> fasterOutputRectangles; // "id"=>{box1, box2, box3, ...}
+    for (auto i:fasterAll) {
+        vector<string> boundingBoxCoordinatesStrings = regexSplit(i, "\\s+");
+        int x1, y1, x2, y2;
+        x1 = stof(boundingBoxCoordinatesStrings[2]);
+        y1 = stof(boundingBoxCoordinatesStrings[3]);
+        x2 = stof(boundingBoxCoordinatesStrings[4]);
+        y2 = stof(boundingBoxCoordinatesStrings[5]);
 
-        vector<Rect>r;
-        if(fasterOutputRectangles.find(boundingBoxCoordinatesStrings[0]) != fasterOutputRectangles.end()) {
-            r=fasterOutputRectangles[boundingBoxCoordinatesStrings[0]];
+        vector<Rect> r;
+        if (fasterOutputRectangles.find(boundingBoxCoordinatesStrings[0]) != fasterOutputRectangles.end()) {
+            r = fasterOutputRectangles[boundingBoxCoordinatesStrings[0]];
         }
-        r.push_back(Rect(x1,y1,x2-x1,y2-y1));
-        fasterOutputRectangles[boundingBoxCoordinatesStrings[0]]=r;
+        r.push_back(Rect(x1, y1, x2 - x1, y2 - y1));
+        fasterOutputRectangles[boundingBoxCoordinatesStrings[0]] = r;
     }
 
-    int correct=0,partial=0;
+    int correct = 0, partial = 0;
 
     for (auto i:groundTruthIds) {
-        ifstream ifs(gtDir+i+".txt");
-        string gtContent( (istreambuf_iterator<char>(ifs) ),
-                             (istreambuf_iterator<char>()    ) );
-        vector<string>boundingBoxesStrings=regexSplit(gtContent,"\n");
-        vector<Rect>groundTruthBoundingBoxes;
-        cout<<"Reading "<<imagesDir+i+".png"<<endl;
-        Mat image=imread(imagesDir+i+".png",1);
+        ifstream ifs(gtDir + i + ".txt");
+        string gtContent((istreambuf_iterator<char>(ifs)),
+                         (istreambuf_iterator<char>()));
+        vector<string> boundingBoxesStrings = regexSplit(gtContent, "\n");
+        vector<Rect> groundTruthBoundingBoxes;
+        cout << "Reading " << imagesDir + i + ".png" << endl;
+        Mat image = imread(imagesDir + i + ".png", 1);
         Mat grayScale;
-        cvtColor(image,grayScale,CV_BGR2GRAY);
+        cvtColor(image, grayScale, CV_BGR2GRAY);
         Mat binaryImage;
-        binarizeShafait(grayScale,binaryImage,50,0.30);
-        namedWindow("2234",WINDOW_AUTOSIZE);
-        imshow("2234",binaryImage);
-        binaryImage/=255;
-        binaryImage=1-binaryImage;
+        binarizeShafait(grayScale, binaryImage, 50, 0.30);
+
+        binaryImage /= 255;
+        binaryImage = 1 - binaryImage;
 
         vector<vector<Point2i> > blobs;
         vector<Rect> conCompsRects;
-        conComps(binaryImage,blobs,conCompsRects);
+        conComps(binaryImage, blobs, conCompsRects);
 
-        for(auto j:boundingBoxesStrings) {
-            vector<string>boundingBoxCoordinates=regexSplit(j,"[,]");
-            int x1,y1,x2,y2;
-            x1=stoi(boundingBoxCoordinates[0]);
-            y1=stoi(boundingBoxCoordinates[1]);
-            x2=stoi(boundingBoxCoordinates[2]);
-            y2=stoi(boundingBoxCoordinates[3]);
-            rectangle(image,Rect(x1,y1,x2-x1,y2-y1),Scalar(255,0,0),3);
-            groundTruthBoundingBoxes.push_back(Rect(x1,y1,x2-x1,y2-y1));
+        for (auto j:boundingBoxesStrings) {
+            vector<string> boundingBoxCoordinates = regexSplit(j, "[,]");
+            int x1, y1, x2, y2;
+            x1 = stoi(boundingBoxCoordinates[0]);
+            y1 = stoi(boundingBoxCoordinates[1]);
+            x2 = stoi(boundingBoxCoordinates[2]);
+            y2 = stoi(boundingBoxCoordinates[3]);
+            rectangle(image, Rect(x1, y1, x2 - x1, y2 - y1), Scalar(255, 0, 0), 3);
+            groundTruthBoundingBoxes.push_back(Rect(x1, y1, x2 - x1, y2 - y1));
         }
 
-        vector<Rect>rcnnBoundingBoxes;
-        if(fasterOutputRectangles.find(i) != fasterOutputRectangles.end()) {
-            rcnnBoundingBoxes=fasterOutputRectangles[i];
+        vector<Rect> rcnnBoundingBoxes;
+        if (fasterOutputRectangles.find(i) != fasterOutputRectangles.end()) {
+            rcnnBoundingBoxes = fasterOutputRectangles[i];
         }
 
         // rcnnBoundingBoxes will contain rcnn output boxes
         // groundTruthBoundingBoxes will contain GT bounding boxes
 
-        vector<Rect>rcnnTrimmedBoundingBoxes;
-        for(auto b:rcnnBoundingBoxes) {
-            vector<Rect>innerRects;
-            for(auto j:conCompsRects) {
-                if((j&b).area()>0) {
+        vector<Rect> rcnnTrimmedBoundingBoxes;
+        for (auto b:rcnnBoundingBoxes) {
+            vector<Rect> innerRects;
+            for (auto j:conCompsRects) {
+                if ((j & b).area() > 0) {
                     innerRects.push_back(j);
                 }
             }
             // innerRects will contain all the boxes which are inside b
             Rect trimmed;
-            bool isSet=false;
-            for(auto j:innerRects) {
-                if(isSet) {
-                    trimmed=(j&b)|trimmed;
-                }
-                else {
-                    trimmed=j&b;
-                    isSet=true;
+            bool isSet = false;
+            for (auto j:innerRects) {
+                if (isSet) {
+                    trimmed = (j & b) | trimmed;
+                } else {
+                    trimmed = j & b;
+                    isSet = true;
                 };
             }
             rcnnTrimmedBoundingBoxes.push_back(trimmed);
@@ -248,25 +246,24 @@ int main(int argc, char *argv[]) {
 
         //rcnnTrimmedBoundingBoxes contains trimmed boundix boxes of faster rcnn
 
-        for(auto j:rcnnTrimmedBoundingBoxes) {
-            rectangle(image,j,Scalar(0,0,255),3);
+        for (auto j:rcnnTrimmedBoundingBoxes) {
+            rectangle(image, j, Scalar(0, 0, 255), 3);
         }
-          for(auto i:groundTruthBoundingBoxes){
-              for(auto j:rcnnBoundingBoxes ) {
-                  float area = 2 * (i & j).area() / (float) (i | j).area();
-                  if (area >= 0.9)
-                      correct += 1;
-                  else
-                      partial += 1;
+        for (auto i:groundTruthBoundingBoxes) {
+            for (auto j:rcnnBoundingBoxes) {
+                float area = 2 * (i & j).area() / (float) (i | j).area();
+                if (area >= 0.9)
+                    correct += 1;
+                else
+                    partial += 1;
 
-              }
-          }
-    //}
+            }
+        }
 
 
-        imwrite(outputDir+i+".png",image);
+        imwrite(outputDir + i + ".png", image);
     }
 
-    cout<<"correct are "<<correct<<endl;
+    cout << "correct are " << correct << endl;
     return 0;
 }
