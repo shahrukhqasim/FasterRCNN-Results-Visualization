@@ -184,14 +184,16 @@ int main(int argc, char *argv[]) {
         r.push_back(Rect(x1, y1, x2 - x1, y2 - y1));
         fasterOutputRectangles[boundingBoxCoordinatesStrings[0]] = r;
     }
-    int correct=0,partial=0;
-    int missed=0;
-    int falsePositive=0;
-    int overSegmented=0;
+    float correct=0.0,partial=0.0;
+    float missed=0.0;
+    float falsePositive=0.0;
+    float overSegmented,underSegmented=0.0;
     vector<Rect>rcnnTrimmedBoundingBoxes;
     vector<Rect>groundTruthBoundingBoxes;
     float averagePrecision;
-    float areaCorrect,areaMissed,areaFalsePositive,precision,areaOverSegmented;
+    float areaCorrect,areaMissed,areaFalsePositive,areaOverSegmented,areaUnderSegmentation;
+    float precision;
+    int sizeRcnn=0;
 
     for (auto i:groundTruthIds) {
         ifstream ifs(gtDir + i + ".txt");
@@ -260,71 +262,75 @@ int main(int argc, char *argv[]) {
 
         for (auto j:rcnnTrimmedBoundingBoxes) {
             rectangle(image, j, Scalar(0, 0, 255), 3);
+            sizeRcnn+=1;
         }
         //Correct & Partial
         for(auto i:groundTruthBoundingBoxes){
             for(auto j:rcnnTrimmedBoundingBoxes ) {
-                areaCorrect = 2 * abs((i & j).area()) / (float)abs(i.area() + j.area());
-                if (areaCorrect >= MAX_THRESH)
+           //     areaCorrect = 2 * abs((i & j).area()) / (float)abs(i.area() + j.area());
+                areaCorrect = abs((i & j).area()) / (float)abs(i.area());
+                if (areaCorrect >=(1- MAX_THRESH))
                     correct += 1;
                 else if (areaCorrect>MIN_THRESH && areaCorrect<MAX_THRESH)
                     partial += 1;
-
-
             }
         }
 
         //Over-Segmented
         for(auto i:groundTruthBoundingBoxes){
             for(auto j:rcnnTrimmedBoundingBoxes ) {
-
                 areaOverSegmented=abs((i&j).area())/(float)abs(i.area());
-              // if(AreaOverSegmented>MIN_THRESH && AreaOverSegmented<MAX_THRESH)
-                 if(areaOverSegmented>0.9)
+                 if(areaOverSegmented>MIN_THRESH && areaOverSegmented<MAX_THRESH)
+
                     overSegmented+=1;
 
             }
         }
+        //Under-Segmented
+        for(auto i:groundTruthBoundingBoxes){
+            for(auto j:rcnnTrimmedBoundingBoxes ) {
+                areaUnderSegmentation=abs((i&j).area())/(float)abs(j.area());
+                if(areaUnderSegmentation>MIN_THRESH && areaUnderSegmentation<MAX_THRESH)
+                    underSegmented+=1;
 
-        int sizeRcnn=rcnnTrimmedBoundingBoxes.size();
+            }
+        }
         //Missed
         for(auto i:groundTruthBoundingBoxes){
             for(auto j: rcnnTrimmedBoundingBoxes) {
                 areaMissed=abs((i&j).area())/(float)abs(i.area());
-                if (areaMissed<=MIN_THRESH)
+                if (areaMissed<MAX_THRESH)
                     missed+=1;
 
             }
         }
         //False Positives
-        for(auto i:rcnnTrimmedBoundingBoxes){
-            for(auto j:groundTruthBoundingBoxes ) {
-               // AreaFalsePositive=(i&j).area()/(float)i.area();
-                areaFalsePositive=(float)abs((i&j).area());
-                if (areaFalsePositive<=MIN_THRESH)
-                {
+        for(auto i:groundTruthBoundingBoxes){
+            for(auto j:rcnnTrimmedBoundingBoxes ) {
+                areaFalsePositive=abs((i&j).area())/(float)abs(j.area());
+              //areaFalsePositive=(float)abs((i&j).area());
+                if (areaFalsePositive<MAX_THRESH)
                     falsePositive+=1;
-                }
-
             }
         }
         //Precision
         for(auto i:groundTruthBoundingBoxes){
-            for(auto j: rcnnTrimmedBoundingBoxes) {
-                precision = (abs((i & j).area()) / (float)abs( (i.area())));
-                averagePrecision=precision/(float)sizeRcnn;
-
+            for(auto j: rcnnTrimmedBoundingBoxes)
+            {
+                precision = precision+ (abs((i & j).area()) / (float)abs((i.area())));
             }
         }
 
         imwrite(outputDir + i + ".png", image);
     }
+    cout<<"sizeRcnn "<<sizeRcnn<<endl;
+    cout << "Total correct are " << (correct/sizeRcnn)*100<< endl;
+    cout << "Total over-segmented are " << (overSegmented/sizeRcnn)*100<< endl;
+    cout << "Total under-segmented are " << (underSegmented/sizeRcnn)*100<< endl;
+    cout <<"Total false positives are "<<(falsePositive/sizeRcnn)*100<<endl;
+    cout<<"Total missed are "<<(missed/sizeRcnn)*100<<endl;
+    cout<<"Total partial are "<<(partial/sizeRcnn)*100<<endl;
+    cout<< "MAP is " << (precision/sizeRcnn)*100 << endl;
 
-    cout << "Total correct are " << correct << endl;
-    cout << "Total over-segmented are " << overSegmented << endl;
-    cout <<"Total false positives are "<<falsePositive<<endl;
-    cout<<"Total missed are "<<missed<<endl;
-    cout<<"Total partial are "<<partial<<endl;
-    cout<< "MAP is " << averagePrecision << endl;
     return 0;
 }
