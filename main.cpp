@@ -180,8 +180,16 @@ int main(int argc, char *argv[]) {
         r.push_back(Rect(x1, y1, x2 - x1, y2 - y1));
         fasterOutputRectangles[boundingBoxCoordinatesStrings[0]] = r;
     }
-
-    int correct = 0, partial = 0;
+    int correct=0,partial=0;
+    int missed=0;
+    int falsePositive=0;
+    int overSegmented=0;
+    float AreaCorrect,AreaMissed,AreaFalsePositive,precision,AreaOverSegmented;
+    vector<Rect>rcnnTrimmedBoundingBoxes;
+    vector<Rect>groundTruthBoundingBoxes;
+    float averagePrecision;
+    float maxThresh=0.9;
+    float minThresh=0.1;
 
     for (auto i:groundTruthIds) {
         ifstream ifs(gtDir + i + ".txt");
@@ -216,7 +224,9 @@ int main(int argc, char *argv[]) {
 
         vector<Rect> rcnnBoundingBoxes;
         if (fasterOutputRectangles.find(i) != fasterOutputRectangles.end()) {
+
             rcnnBoundingBoxes = fasterOutputRectangles[i];
+
         }
 
         // rcnnBoundingBoxes will contain rcnn output boxes
@@ -249,21 +259,70 @@ int main(int argc, char *argv[]) {
         for (auto j:rcnnTrimmedBoundingBoxes) {
             rectangle(image, j, Scalar(0, 0, 255), 3);
         }
-        for (auto i:groundTruthBoundingBoxes) {
-            for (auto j:rcnnBoundingBoxes) {
-                float area = 2 * (i & j).area() / (float) (i | j).area();
-                if (area >= 0.9)
+        //Correct & Partial
+        for(auto i:groundTruthBoundingBoxes){
+            for(auto j:rcnnTrimmedBoundingBoxes ) {
+                AreaCorrect = 2 * abs((i & j).area()) / (float)abs((i | j).area());
+                if (AreaCorrect >= maxThresh)
                     correct += 1;
-                else
+                else if (AreaCorrect<minThresh && AreaCorrect>maxThresh)
                     partial += 1;
+
 
             }
         }
 
+        //Over-Segmented
+        for(auto i:groundTruthBoundingBoxes){
+            for(auto j:rcnnTrimmedBoundingBoxes ) {
+
+                AreaOverSegmented=abs((i&j).area())/(float)abs(i.area());
+              // if(AreaOverSegmented>minThresh && AreaOverSegmented<maxThresh)
+                 if(AreaOverSegmented>0.9)
+                    overSegmented+=1;
+
+            }
+        }
+
+        int sizeRcnn=rcnnTrimmedBoundingBoxes.size();
+        //Missed
+        for(auto i:groundTruthBoundingBoxes){
+            for(auto j: rcnnTrimmedBoundingBoxes) {
+                AreaMissed=abs((i&j).area())/(float)abs(i.area());
+                if (AreaMissed<=minThresh)
+                    missed+=1;
+
+            }
+        }
+        //False Positives
+        for(auto i:rcnnTrimmedBoundingBoxes){
+            for(auto j:groundTruthBoundingBoxes ) {
+               // AreaFalsePositive=(i&j).area()/(float)i.area();
+                AreaFalsePositive=(float)abs((i&j).area());
+                if (AreaFalsePositive<=minThresh)
+                {
+                    falsePositive+=1;
+                }
+
+            }
+        }
+        //Precision
+        for(auto i:groundTruthBoundingBoxes){
+            for(auto j: rcnnTrimmedBoundingBoxes) {
+                precision = (abs((i & j).area()) / (float)abs( (i.area())));
+                averagePrecision=precision/(float)sizeRcnn;
+
+            }
+        }
 
         imwrite(outputDir + i + ".png", image);
     }
 
-    cout << "correct are " << correct << endl;
+    cout << "Total correct are " << correct << endl;
+    cout << "Total over-segmented are " << overSegmented << endl;
+    cout <<"Total false positives are "<<falsePositive<<endl;
+    cout<<"Total missed are "<<missed<<endl;
+    cout<<"Total partial are "<<partial<<endl;
+    cout<< "MAP is " << averagePrecision << endl;
     return 0;
 }
