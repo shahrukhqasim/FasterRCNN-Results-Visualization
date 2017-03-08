@@ -138,6 +138,10 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+
+    const float MAX_THRESH=0.9;
+    const float MIN_THRESH=0.1;
+
     string imagesDir = argv[1];
     string gtDir = argv[2];
     string fasterFilePath = argv[3];
@@ -187,8 +191,6 @@ int main(int argc, char *argv[]) {
     vector<Rect>rcnnTrimmedBoundingBoxes;
     vector<Rect>groundTruthBoundingBoxes;
     float averagePrecision;
-    float maxThresh=0.9;
-    float minThresh=0.1;
     float areaCorrect,areaMissed,areaFalsePositive,precision,areaOverSegmented;
 
     for (auto i:groundTruthIds) {
@@ -262,10 +264,10 @@ int main(int argc, char *argv[]) {
         //Correct & Partial
         for(auto i:groundTruthBoundingBoxes){
             for(auto j:rcnnTrimmedBoundingBoxes ) {
-                areaCorrect = 2 * abs((i & j).area()) / (float)abs((i | j).area());
-                if (areaCorrect >= maxThresh)
+                areaCorrect = 2 * abs((i & j).area()) / (float)abs(i.area() + j.area());
+                if (areaCorrect >= MAX_THRESH)
                     correct += 1;
-                else if (areaCorrect<minThresh && areaCorrect>maxThresh)
+                else if (areaCorrect>MIN_THRESH && areaCorrect<MAX_THRESH)
                     partial += 1;
 
 
@@ -277,7 +279,7 @@ int main(int argc, char *argv[]) {
             for(auto j:rcnnTrimmedBoundingBoxes ) {
 
                 areaOverSegmented=abs((i&j).area())/(float)abs(i.area());
-              // if(AreaOverSegmented>minThresh && AreaOverSegmented<maxThresh)
+              // if(AreaOverSegmented>MIN_THRESH && AreaOverSegmented<MAX_THRESH)
                  if(areaOverSegmented>0.9)
                     overSegmented+=1;
 
@@ -289,7 +291,7 @@ int main(int argc, char *argv[]) {
         for(auto i:groundTruthBoundingBoxes){
             for(auto j: rcnnTrimmedBoundingBoxes) {
                 areaMissed=abs((i&j).area())/(float)abs(i.area());
-                if (areaMissed<=minThresh)
+                if (areaMissed<=MIN_THRESH)
                     missed+=1;
 
             }
@@ -299,7 +301,7 @@ int main(int argc, char *argv[]) {
             for(auto j:groundTruthBoundingBoxes ) {
                // AreaFalsePositive=(i&j).area()/(float)i.area();
                 areaFalsePositive=(float)abs((i&j).area());
-                if (areaFalsePositive<=minThresh)
+                if (areaFalsePositive<=MIN_THRESH)
                 {
                     falsePositive+=1;
                 }
