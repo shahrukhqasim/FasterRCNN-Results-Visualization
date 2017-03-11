@@ -121,7 +121,7 @@ void binarizeShafait(Mat &gray, Mat &binary, int w, double k) {
 }
 
 
-float computeOverlap(const Rect& i, const Rect& j) {
+float computeOverlap(const Rect &i, const Rect &j) {
     return 2 * abs((i & j).area()) / (float) abs(i.area() + j.area());
 }
 
@@ -144,8 +144,8 @@ int main(int argc, char *argv[]) {
     }
 
 
-    const float MAX_THRESH=0.9;
-    const float MIN_THRESH=0.1;
+    const float MAX_THRESH = 0.9;
+    const float MIN_THRESH = 0.1;
 
     string imagesDir = argv[1];
     string gtDir = argv[2];
@@ -189,23 +189,23 @@ int main(int argc, char *argv[]) {
         r.push_back(Rect(x1, y1, x2 - x1, y2 - y1));
         fasterOutputRectangles[boundingBoxCoordinatesStrings[0]] = r;
     }
-    float correct=0.0,partial=0.0;
-    float missed=0.0;
-    float falsePositive=0.0;
-    float overSegmented=0,underSegmented=0.0;
-    vector<Rect>rcnnTrimmedBoundingBoxes;
-    vector<Rect>groundTruthBoundingBoxes;
+    float correct = 0.0, partial = 0.0;
+    float missed = 0.0;
+    float falsePositive = 0.0;
+    float overSegmented = 0, underSegmented = 0.0;
+    vector<Rect> rcnnTrimmedBoundingBoxes;
+    vector<Rect> groundTruthBoundingBoxes;
     float precision;
-    int sizeRcnn=0;
+    int sizeRcnn = 0;
 
-    float areaGtTotal=0;
-    float areaTabularPrecision=0;
-    float areaTabularRecall=0;
-    float areaOutputTotal=0;
+    float areaGtTotal = 0;
+    float areaTabularPrecision = 0;
+    float areaTabularRecall = 0;
+    float areaOutputTotal = 0;
 
-    int totalGtBoxes=0;
+    int totalGtBoxes = 0;
 
-    int z=0;
+    int z = 0;
     for (auto i:groundTruthIds) {
         ifstream ifs(gtDir + i + ".txt");
         string gtContent((istreambuf_iterator<char>(ifs)),
@@ -274,12 +274,12 @@ int main(int argc, char *argv[]) {
 
         for (auto j:rcnnTrimmedBoundingBoxes) {
             rectangle(image, j, Scalar(0, 0, 255), 3);
-            sizeRcnn+=1;
+            sizeRcnn += 1;
         }
 
-        vector<pair<Rect,Rect>>assignments;
-        vector<float>overlaps;
-        int missedG=0;
+        vector<pair<Rect, Rect>> assignments;
+        vector<float> overlaps;
+        int missedG = 0;
         {
             vector<Rect> rcnnTrimmedBoundingBoxes2(rcnnTrimmedBoundingBoxes);
 
@@ -291,7 +291,7 @@ int main(int argc, char *argv[]) {
                 for (int j = 0; j < rcnnTrimmedBoundingBoxes2.size(); j++) {
                     float newOverlap = computeOverlap(i, rcnnTrimmedBoundingBoxes2[j]);
 
-                    if(newOverlap==0)
+                    if (newOverlap == 0)
                         continue;
 
                     if (newOverlap > maxOverlap) {
@@ -300,111 +300,110 @@ int main(int argc, char *argv[]) {
                     }
                 }
 
-                if(maxIndex!=-1) {
-                    assignments.push_back(pair<Rect,Rect>(i,rcnnTrimmedBoundingBoxes2[maxIndex]));
+                if (maxIndex != -1) {
+                    assignments.push_back(pair<Rect, Rect>(i, rcnnTrimmedBoundingBoxes2[maxIndex]));
                     overlaps.push_back(maxOverlap);
-                    rcnnTrimmedBoundingBoxes2.erase(rcnnTrimmedBoundingBoxes2.begin()+maxIndex);
-                }
-                else {
+                    rcnnTrimmedBoundingBoxes2.erase(rcnnTrimmedBoundingBoxes2.begin() + maxIndex);
+                } else {
                     missedG++;
                 }
             }
         }
 
         // Missed rects
-        missed+=missedG;
+        missed += missedG;
 
-        vector<pair<Rect,Rect>>partialTables;
+        vector<pair<Rect, Rect>> partialTables;
         //Correct & Partial
-        for(int i=0;i<assignments.size();i++) {
-            if(overlaps[i]>=MAX_THRESH) {
+        for (int i = 0; i < assignments.size(); i++) {
+            if (overlaps[i] >= MAX_THRESH) {
                 correct++;
-            }
-            else if(overlaps[i]>MIN_THRESH&&overlaps[i]<MAX_THRESH) {
+            } else if (overlaps[i] > MIN_THRESH && overlaps[i] < MAX_THRESH) {
                 partial++;
                 partialTables.push_back(assignments[i]);
             }
         }
 
-        totalGtBoxes+=groundTruthBoundingBoxes.size();
+        totalGtBoxes += groundTruthBoundingBoxes.size();
 
         //Over-Segmented
-        for(auto i:groundTruthBoundingBoxes){
-            int overlapCount=0;
-            for(auto j:rcnnTrimmedBoundingBoxes ) {
-                float overlap=computeOverlap(i,j);
-                if(overlap>MIN_THRESH&&overlap<MAX_THRESH)
+        for (auto i:groundTruthBoundingBoxes) {
+            int overlapCount = 0;
+            for (auto j:rcnnTrimmedBoundingBoxes) {
+                float overlap = computeOverlap(i, j);
+                if (overlap > MIN_THRESH && overlap < MAX_THRESH)
                     overlapCount++;
             }
-            if(overlapCount>=2) {
+            if (overlapCount >= 2) {
                 overSegmented++;
             }
         }
 
-        for(auto i:partialTables) {
-            auto ii=i.first;
+        for (auto i:partialTables) {
+            auto ii = i.first;
             int numOverlapped;
-            for(auto j:rcnnTrimmedBoundingBoxes) {
-                float overlap=computeOverlap(ii,j);
-                if(overlap>MIN_THRESH&&overlap<MAX_THRESH)
+            for (auto j:rcnnTrimmedBoundingBoxes) {
+                float overlap = computeOverlap(ii, j);
+                if (overlap > MIN_THRESH && overlap < MAX_THRESH)
                     numOverlapped++;
             }
-            if(numOverlapped>=2)
+            if (numOverlapped >= 2)
                 underSegmented++;
         }
 
 
         // False positives
-        for(auto i:rcnnTrimmedBoundingBoxes ) {
-            float maxOverlap=-1;
-            for(int j=0;j<groundTruthBoundingBoxes.size();j++){
-                float overlap=computeOverlap(i,groundTruthBoundingBoxes[j]);
-                if(overlap>maxOverlap) {
-                    maxOverlap=overlap;
+        for (auto i:rcnnTrimmedBoundingBoxes) {
+            float maxOverlap = -1;
+            for (int j = 0; j < groundTruthBoundingBoxes.size(); j++) {
+                float overlap = computeOverlap(i, groundTruthBoundingBoxes[j]);
+                if (overlap > maxOverlap) {
+                    maxOverlap = overlap;
                 }
             }
-            if(maxOverlap<=MIN_THRESH)
+            if (maxOverlap <= MIN_THRESH)
                 falsePositive++;
         }
         // Area precision
-        for(auto i:rcnnTrimmedBoundingBoxes ) {
-            float overlapSum=0;
-            for(int j=0;j<groundTruthBoundingBoxes.size();j++){
-                float newOverlap=(i&groundTruthBoundingBoxes[j]).area();
-                for(int k=0;k<j;k++) {
-                    newOverlap-=(i&groundTruthBoundingBoxes[k]&groundTruthBoundingBoxes[j]).area();
+        for (auto i:rcnnTrimmedBoundingBoxes) {
+            float overlapSum = 0;
+            for (int j = 0; j < groundTruthBoundingBoxes.size(); j++) {
+                float newOverlap = (i & groundTruthBoundingBoxes[j]).area();
+                for (int k = 0; k < j; k++) {
+                    newOverlap -= (i & groundTruthBoundingBoxes[k] & groundTruthBoundingBoxes[j]).area();
                 }
-                overlapSum+=newOverlap;
+                overlapSum += newOverlap;
             }
-            areaTabularPrecision+=overlapSum;
-            areaOutputTotal+=i.area();
+            areaTabularPrecision += overlapSum;
+            areaOutputTotal += i.area();
         }
 
 
         // Area recall
-        for(auto i:groundTruthBoundingBoxes) {
-            float overlapSum=0;
-            for(int j=0;j<rcnnTrimmedBoundingBoxes.size();j++){
-                float newOverlap=(i&rcnnTrimmedBoundingBoxes[j]).area();
-                for(int k=0;k<j;k++) {
-                    newOverlap-=(i&rcnnTrimmedBoundingBoxes[k]&rcnnTrimmedBoundingBoxes[j]).area();
+        for (auto i:groundTruthBoundingBoxes) {
+            float overlapSum = 0;
+            for (int j = 0; j < rcnnTrimmedBoundingBoxes.size(); j++) {
+                float newOverlap = (i & rcnnTrimmedBoundingBoxes[j]).area();
+                for (int k = 0; k < j; k++) {
+                    newOverlap -= (i & rcnnTrimmedBoundingBoxes[k] & rcnnTrimmedBoundingBoxes[j]).area();
                 }
-                overlapSum+=newOverlap;
+                overlapSum += newOverlap;
             }
-            areaTabularRecall+=overlapSum;
-            areaGtTotal+=i.area();
+            areaTabularRecall += overlapSum;
+            areaGtTotal += i.area();
         }
         imwrite(outputDir + i + ".png", image);
         z++;
     }
-    cout<<"sizeRcnn "<<sizeRcnn<<endl;
-    cout << "Correct:" << (correct/((float)totalGtBoxes))*100 << "%"<< endl;
-    cout<<"Partial: "<<(partial/((float)totalGtBoxes))*100 << "%"<< endl;
-    cout<<"Missed: "<<(missed/totalGtBoxes)*100 << "%"<< endl;
-    cout << "Over-segmented: " << (overSegmented/totalGtBoxes)*100 << "%"<< endl;
-    cout <<"False positives: "<<(falsePositive/sizeRcnn)*100 << "%"<< endl;
-    cout<< "Area precision: " << (areaTabularPrecision/areaOutputTotal)* 100 << "%"<< endl;
-    cout<< "Area recall: " << (areaTabularRecall/areaGtTotal)* 100 << "%"<< endl;
+    cout << "sizeRcnn " << sizeRcnn << endl;
+    cout << "Correct:" << (correct / ((float) totalGtBoxes)) * 100 << "%" << endl;
+    cout << "Partial: " << (partial / ((float) totalGtBoxes)) * 100 << "%" << endl;
+    cout << "Missed: " << (missed / totalGtBoxes) * 100 << "%" << endl;
+    cout << "Over-segmented: " << (overSegmented / totalGtBoxes) * 100 << "%" << endl;
+    cout << "Under-segmented: " << (underSegmented / totalGtBoxes) * 100 << "%" << endl;
+    cout << "False positives: " << (falsePositive / sizeRcnn) * 100 << "%" << endl;
+    cout << "Area precision: " << (areaTabularPrecision / areaOutputTotal) * 100 << "%" << endl;
+    cout << "Area recall: " << (areaTabularRecall / areaGtTotal) * 100 << "%" << endl;
 
     return 0;
 }
