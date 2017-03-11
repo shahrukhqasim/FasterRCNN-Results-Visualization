@@ -267,9 +267,8 @@ int main(int argc, char *argv[]) {
         //Correct & Partial
         for(auto i:groundTruthBoundingBoxes){
             for(auto j:rcnnTrimmedBoundingBoxes ) {
-           //     areaCorrect = 2 * abs((i & j).area()) / (float)abs(i.area() + j.area());
-                areaCorrect = abs((i & j).area()) / (float)abs(i.area());
-                if (areaCorrect >=(1- MAX_THRESH))
+                areaCorrect = 2 * abs((i & j).area()) / (float)abs(i.area() + j.area());
+                if (areaCorrect >=(MAX_THRESH))
                     correct += 1;
                 else if (areaCorrect>MIN_THRESH && areaCorrect<MAX_THRESH)
                     partial += 1;
@@ -324,13 +323,14 @@ int main(int argc, char *argv[]) {
         imwrite(outputDir + i + ".png", image);
     }
     cout<<"sizeRcnn "<<sizeRcnn<<endl;
-    cout << "Total correct are " << (correct/sizeRcnn)*100<< endl;
-    cout << "Total over-segmented are " << (overSegmented/sizeRcnn)*100<< endl;
-    cout << "Total under-segmented are " << (underSegmented/sizeRcnn)*100<< endl;
-    cout <<"Total false positives are "<<(falsePositive/sizeRcnn)*100<<endl;
-    cout<<"Total missed are "<<(missed/sizeRcnn)*100<<endl;
-    cout<<"Total partial are "<<(partial/sizeRcnn)*100<<endl;
-    cout<< "MAP is " << (precision/sizeRcnn)*100 << endl;
+    cout << "Correct:" << (correct/sizeRcnn)*100 << "%"<< endl;
+    cout << "Over-segmented: " << (overSegmented/sizeRcnn)*100 << "%"<< endl;
+    cout << "Under-segmented: " << (underSegmented/sizeRcnn)*100 << "%"<< endl;
+    cout <<"False positives: "<<(falsePositive/sizeRcnn)*100 << "%"<< endl;
+    cout<<"Missed: "<<(missed/sizeRcnn)*100 << "%"<< endl;
+    cout<<"Partial: "<<(partial/sizeRcnn)*100 << "%"<< endl;
+
+    cout<< "MAP is " << (precision/sizeRcnn)* 100 << "%"<< endl;
 
     return 0;
 }
