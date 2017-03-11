@@ -120,6 +120,11 @@ void binarizeShafait(Mat &gray, Mat &binary, int w, double k) {
     }
 }
 
+
+float computeOverlap(const Rect& i, const Rect& j) {
+    return 2 * abs((i & j).area()) / (float) abs(i.area() + j.area());
+}
+
 /**
  * First argument = images directory
  * Second argument = GT directory (should contains ids.txt)
@@ -260,32 +265,62 @@ int main(int argc, char *argv[]) {
             rcnnTrimmedBoundingBoxes.push_back(trimmed);
         }
 
-        //rcnnTrimmedBoundingBoxes contains trimmed boundix boxes of faster rcnn
+        //rcnnTrimmedBoundingBoxes contains trimmed bounding boxes of faster rcnn
+
 
         for (auto j:rcnnTrimmedBoundingBoxes) {
             rectangle(image, j, Scalar(0, 0, 255), 3);
             sizeRcnn+=1;
         }
-        //Correct & Partial
-        for(auto i:groundTruthBoundingBoxes){
-            for(auto j:rcnnTrimmedBoundingBoxes ) {
-                areaCorrect = 2 * abs((i & j).area()) / (float)abs(i.area() + j.area());
-                if (areaCorrect >=(MAX_THRESH))
-                    correct += 1;
-                else if (areaCorrect>MIN_THRESH && areaCorrect<MAX_THRESH)
-                    partial += 1;
+
+        vector<pair<Rect,Rect>>assignments;
+        vector<float>overlaps;
+        {
+            vector<Rect> rcnnTrimmedBoundingBoxes2(rcnnTrimmedBoundingBoxes);
+
+            for (auto i:groundTruthBoundingBoxes) {
+
+                float maxOverlap = -1;
+                int maxIndex = -1;
+
+                for (int j = 0; j < rcnnTrimmedBoundingBoxes2.size(); j++) {
+                    float newOverlap = computeOverlap(i, rcnnTrimmedBoundingBoxes2[j]);
+
+                    if(newOverlap==0)
+                        continue;
+
+                    if (newOverlap > maxOverlap) {
+                        maxOverlap = newOverlap;
+                        maxIndex++;
+                    }
+                }
+
+                if(maxIndex!=-1) {
+                    assignments.push_back(pair<Rect,Rect>(i,rcnnTrimmedBoundingBoxes2[maxIndex]));
+                    overlaps.push_back(maxOverlap);
+                    rcnnTrimmedBoundingBoxes2.erase(rcnnTrimmedBoundingBoxes2.begin()+maxIndex);
+                }
             }
-            totalGtBoxes++;
         }
+
+        //Correct & Partial
+        for(int i=0;i<assignments.size();i++) {
+            if(overlaps[i]>=MAX_THRESH) {
+                correct++;
+            }
+            else if(overlaps[i]>MIN_THRESH&&overlaps[i]<MAX_THRESH) {
+                partial++;
+            }
+        }
+
+        totalGtBoxes+=groundTruthBoundingBoxes.size();
 
         //Over-Segmented
         for(auto i:groundTruthBoundingBoxes){
             for(auto j:rcnnTrimmedBoundingBoxes ) {
                 areaOverSegmented=abs((i&j).area())/(float)abs(i.area());
                  if(areaOverSegmented>MIN_THRESH && areaOverSegmented<MAX_THRESH)
-
                     overSegmented+=1;
-
             }
         }
         //Under-Segmented
@@ -327,11 +362,13 @@ int main(int argc, char *argv[]) {
     }
     cout<<"sizeRcnn "<<sizeRcnn<<endl;
     cout << "Correct:" << (correct/((float)totalGtBoxes))*100 << "%"<< endl;
+    cout<<"Partial: "<<(partial/((float)totalGtBoxes))*100 << "%"<< endl;
+
+
     cout << "Over-segmented: " << (overSegmented/sizeRcnn)*100 << "%"<< endl;
     cout << "Under-segmented: " << (underSegmented/sizeRcnn)*100 << "%"<< endl;
     cout <<"False positives: "<<(falsePositive/sizeRcnn)*100 << "%"<< endl;
     cout<<"Missed: "<<(missed/sizeRcnn)*100 << "%"<< endl;
-    cout<<"Partial: "<<(partial/sizeRcnn)*100 << "%"<< endl;
 
     cout<< "MAP is " << (precision/sizeRcnn)* 100 << "%"<< endl;
 
