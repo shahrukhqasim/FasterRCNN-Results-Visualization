@@ -192,7 +192,7 @@ int main(int argc, char *argv[]) {
     float correct=0.0,partial=0.0;
     float missed=0.0;
     float falsePositive=0.0;
-    float overSegmented,underSegmented=0.0;
+    float overSegmented=0,underSegmented=0.0;
     vector<Rect>rcnnTrimmedBoundingBoxes;
     vector<Rect>groundTruthBoundingBoxes;
     float averagePrecision;
@@ -275,6 +275,7 @@ int main(int argc, char *argv[]) {
 
         vector<pair<Rect,Rect>>assignments;
         vector<float>overlaps;
+        int missedG=0;
         {
             vector<Rect> rcnnTrimmedBoundingBoxes2(rcnnTrimmedBoundingBoxes);
 
@@ -300,8 +301,14 @@ int main(int argc, char *argv[]) {
                     overlaps.push_back(maxOverlap);
                     rcnnTrimmedBoundingBoxes2.erase(rcnnTrimmedBoundingBoxes2.begin()+maxIndex);
                 }
+                else {
+                    missedG++;
+                }
             }
         }
+
+        // Missed rects
+        missed+=missedG;
 
         //Correct & Partial
         for(int i=0;i<assignments.size();i++) {
@@ -317,10 +324,14 @@ int main(int argc, char *argv[]) {
 
         //Over-Segmented
         for(auto i:groundTruthBoundingBoxes){
+            int overlapCount=0;
             for(auto j:rcnnTrimmedBoundingBoxes ) {
-                areaOverSegmented=abs((i&j).area())/(float)abs(i.area());
-                 if(areaOverSegmented>MIN_THRESH && areaOverSegmented<MAX_THRESH)
-                    overSegmented+=1;
+                float overlap=computeOverlap(i,j);
+                if(overlap>0.1&&overlap<0.9)
+                    overlapCount++;
+            }
+            if(overlapCount>=2) {
+                overSegmented++;
             }
         }
         //Under-Segmented
@@ -329,15 +340,6 @@ int main(int argc, char *argv[]) {
                 areaUnderSegmentation=abs((i&j).area())/(float)abs(j.area());
                 if(areaUnderSegmentation>MIN_THRESH && areaUnderSegmentation<MAX_THRESH)
                     underSegmented+=1;
-
-            }
-        }
-        //Missed
-        for(auto i:groundTruthBoundingBoxes){
-            for(auto j: rcnnTrimmedBoundingBoxes) {
-                areaMissed=abs((i&j).area())/(float)abs(i.area());
-                if (areaMissed<MAX_THRESH)
-                    missed+=1;
 
             }
         }
@@ -363,9 +365,8 @@ int main(int argc, char *argv[]) {
     cout<<"sizeRcnn "<<sizeRcnn<<endl;
     cout << "Correct:" << (correct/((float)totalGtBoxes))*100 << "%"<< endl;
     cout<<"Partial: "<<(partial/((float)totalGtBoxes))*100 << "%"<< endl;
-
-
-    cout << "Over-segmented: " << (overSegmented/sizeRcnn)*100 << "%"<< endl;
+    cout << "Over-segmented: " << (overSegmented/totalGtBoxes)*100 << "%"<< endl;
+    
     cout << "Under-segmented: " << (underSegmented/sizeRcnn)*100 << "%"<< endl;
     cout <<"False positives: "<<(falsePositive/sizeRcnn)*100 << "%"<< endl;
     cout<<"Missed: "<<(missed/sizeRcnn)*100 << "%"<< endl;
