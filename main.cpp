@@ -195,6 +195,8 @@ int main(int argc, char *argv[]) {
     float precision;
     int sizeRcnn=0;
 
+    int totalGtBoxes=0;
+
     for (auto i:groundTruthIds) {
         ifstream ifs(gtDir + i + ".txt");
         string gtContent((istreambuf_iterator<char>(ifs)),
@@ -273,6 +275,7 @@ int main(int argc, char *argv[]) {
                 else if (areaCorrect>MIN_THRESH && areaCorrect<MAX_THRESH)
                     partial += 1;
             }
+            totalGtBoxes++;
         }
 
         //Over-Segmented
@@ -323,7 +326,7 @@ int main(int argc, char *argv[]) {
         imwrite(outputDir + i + ".png", image);
     }
     cout<<"sizeRcnn "<<sizeRcnn<<endl;
-    cout << "Correct:" << (correct/sizeRcnn)*100 << "%"<< endl;
+    cout << "Correct:" << (correct/((float)totalGtBoxes))*100 << "%"<< endl;
     cout << "Over-segmented: " << (overSegmented/sizeRcnn)*100 << "%"<< endl;
     cout << "Under-segmented: " << (underSegmented/sizeRcnn)*100 << "%"<< endl;
     cout <<"False positives: "<<(falsePositive/sizeRcnn)*100 << "%"<< endl;
